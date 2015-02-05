@@ -1,0 +1,12 @@
+repositories {
+    jcenter()
+}
+
+apply plugin: 'java'
+apply plugin: 'provided-base'
+
+dependencies {
+    provided 'org.robolectric:android-all:5.0.0_r2-robolectric-0'
+    testCompile 'junit:junit:4.12'
+    testCompile 'org.robolectric:robolectric:2.4'
+}

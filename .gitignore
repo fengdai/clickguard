@@ -1,0 +1,15 @@
+# IntelliJ IDEA
+.idea
+*.iml
+*.ipr
+*.iws
+classes
+gen-external-apklibs
+
+# Gradle
+local.properties
+.gradle
+build
+
+# Other
+.DS_Store
