@@ -1,7 +1,11 @@
 ClickGuard
 ===========
 
-To avoid multiple rapid clicks.
+A tiny library used to avoid multiple rapid clicks on Views.
+Just:
+```java
+ClickGuard.guard(button);
+```
 
 
 

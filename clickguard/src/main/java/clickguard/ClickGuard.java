@@ -24,115 +24,206 @@ import android.view.View.OnClickListener;
 
 import java.lang.reflect.Field;
 
+/**
+ * Class used to guard a view to avoid multiple rapid clicks.
+ * <p/>
+ * Guarding a view is as easy as:
+ * <pre><code>
+ * ClickGuard.guard(view);
+ * </code></pre>
+ * <p/>
+ * Or:
+ * <pre><code>
+ * ClickGuard.newGuard().add(view);
+ * </code></pre>
+ * <p/>
+ * When a guarded view is clicked, the view will be watched for a period of time from that moment.
+ * All the upcoming click events will be ignored until the watch period ends.
+ * <p/>
+ * By default, watch period is 1000 milliseconds. You can create a ClickGuard using specify watch
+ * period like this:
+ * <pre><code>
+ * ClickGuard.newGuard(600); // Create a ClickGuard with 600ms watch period.
+ * </code></pre>
+ * <p/>
+ * Multiple views can be guarded by a ClickGuard simultaneously:
+ * <pre><code>
+ * ClickGuard.guard(view1, view2, view3);
+ * </code></pre>
+ * <p/>
+ * When multiple views are guarded by one ClickGuard, the first click on a view will trigger this
+ * ClickGuard to watch. And all upcoming clicks on any of the guarded views will be ignored until
+ * the watch period ends.
+ * <p/>
+ * Another way to guard a view is using a {@linkplain GuardedOnClickListener GuardedOnClickListener}
+ * instead of {@linkplain android.view.View.OnClickListener OnClickListener}:
+ * <pre><code>
+ * button.setOnClickListener(new GuardedOnClickListener() {
+ *     {@literal @Override}
+ *     public boolean onClicked() {
+ *         // React to button click.
+ *         return true;
+ *     }
+ * });
+ * </code></pre>
+ * <p/>
+ * Using static {@linkplain #wrap(android.view.View.OnClickListener) wrap} method can simply make an
+ * exist {@linkplain android.view.View.OnClickListener OnClickListener} to be a {@linkplain
+ * GuardedOnClickListener GuardedOnClickListener}:
+ * <pre><code>
+ * button.setOnClickListener(ClickGuard.wrap(onClickListener));
+ * </code></pre>
+ */
 public abstract class ClickGuard {
 
     /**
-     * Default guard period in millis.
+     * Default watch period in millis.
      */
-    public static final long DEFAULT_GUARD_PERIOD_MILLIS = 1000L;
+    public static final long DEFAULT_WATCH_PERIOD_MILLIS = 1000L;
 
     private ClickGuard() {
         // private
     }
 
+    // ---------------------------------------------------------------------------------------------
+    //                                  Utility methods start
+    // ---------------------------------------------------------------------------------------------
+
     /**
-     * Create a ClickGuard with default guard period: {@link #DEFAULT_GUARD_PERIOD_MILLIS}.
+     * Create a ClickGuard with default watch period: {@link #DEFAULT_WATCH_PERIOD_MILLIS}.
      *
-     * @return The ClickGuard.
+     * @return The created ClickGuard instance.
      */
     public static ClickGuard newGuard() {
-        return newGuard(DEFAULT_GUARD_PERIOD_MILLIS);
+        return newGuard(DEFAULT_WATCH_PERIOD_MILLIS);
     }
 
     /**
-     * Create a ClickGuard with specific guard period: <code>guardPeriodMillis<code/>.
+     * Create a ClickGuard with specific watch period: {@code watchPeriodMillis}.
      *
-     * @return The ClickGuard.
+     * @return The created ClickGuard instance.
      */
-    public static ClickGuard newGuard(long guardPeriodMillis) {
-        return new LaxGuard(guardPeriodMillis);
+    public static ClickGuard newGuard(long watchPeriodMillis) {
+        return new ClickGuardImpl(watchPeriodMillis);
     }
 
     /**
-     * Let an OnClickListener to be a GuardedOnClickListener.
-     * Use default guard period: {@link #DEFAULT_GUARD_PERIOD_MILLIS}.
+     * Let the provided {@linkplain android.view.View.OnClickListener OnClickListener} to be a
+     * {@linkplain GuardedOnClickListener GuardedOnClickListener}. Use a new guard with default
+     * watch period: {@link #DEFAULT_WATCH_PERIOD_MILLIS}.
      *
      * @param onClickListener The listener to be wrapped.
-     * @return a GuardedOnClickListener.
+     * @return A GuardedOnClickListener instance.
      */
     public static GuardedOnClickListener wrap(OnClickListener onClickListener) {
-        return wrap(onClickListener, newGuard());
+        return wrap(newGuard(), onClickListener);
     }
 
     /**
-     * Let an OnClickListener to be a GuardedOnClickListener.
-     * Use specific guard period: <code>guardPeriodMillis<code/>.
+     * Let the provided {@linkplain android.view.View.OnClickListener OnClickListener} to be a
+     * {@linkplain GuardedOnClickListener GuardedOnClickListener}. Use a new guard with specific
+     * watch period: {@code watchPeriodMillis}.
      *
+     * @param watchPeriodMillis The specific watch period.
      * @param onClickListener   The listener to be wrapped.
-     * @param guardPeriodMillis The specific guard period.
-     * @return a GuardedOnClickListener.
+     * @return A GuardedOnClickListener instance.
      */
-    public static GuardedOnClickListener wrap(OnClickListener onClickListener, long guardPeriodMillis) {
-        return wrap(onClickListener, newGuard(guardPeriodMillis));
+    public static GuardedOnClickListener wrap(long watchPeriodMillis, OnClickListener onClickListener) {
+        return newGuard(watchPeriodMillis).wrapOnClickListener(onClickListener);
     }
 
     /**
-     * Let an OnClickListener to be a GuardedOnClickListener.
-     * Use specific ClickGuard: <code>guard<code/>.
+     * Let the provided {@linkplain android.view.View.OnClickListener OnClickListener} to be a
+     * {@linkplain GuardedOnClickListener GuardedOnClickListener}. Use specific ClickGuard: {@code
+     * guard}.
      *
-     * @param onClickListener The listener to be wrapped.
      * @param guard           The specific ClickGuard.
-     * @return a GuardedOnClickListener.
+     * @param onClickListener The listener to be wrapped.
+     * @return A GuardedOnClickListener instance.
      */
-    public static GuardedOnClickListener wrap(OnClickListener onClickListener, ClickGuard guard) {
+    public static GuardedOnClickListener wrap(ClickGuard guard, OnClickListener onClickListener) {
         return guard.wrapOnClickListener(onClickListener);
     }
 
     /**
-     * Use a new ClickGuard with default guard period {@link #DEFAULT_GUARD_PERIOD_MILLIS} to guard the View.
+     * Use a new ClickGuard with default watch period {@link #DEFAULT_WATCH_PERIOD_MILLIS} to guard
+     * View(s).
      *
-     * @param view The view to be guarded.
+     * @param view   The View to be guarded.
+     * @param others More views to be guarded.
      * @return The created ClickedGuard.
      */
-    public static ClickGuard guard(View view) {
-        return guard(view, DEFAULT_GUARD_PERIOD_MILLIS);
+    public static ClickGuard guard(View view, View... others) {
+        return guard(DEFAULT_WATCH_PERIOD_MILLIS, view, others);
     }
 
     /**
-     * Use a new ClickGuard with specific guard period <code>guardPeriodMillis</code> to guard the View.
+     * Use a new ClickGuard with specific guard period {@code watchPeriodMillis} to guard View(s).
      *
-     * @param view              The view to be guarded.
-     * @param guardPeriodMillis The specific guard period.
-     * @return The ClickedGuard used to guard this View.
+     * @param watchPeriodMillis The specific watch period.
+     * @param view              The View to be guarded.
+     * @param others            More Views to be guarded.
+     * @return The created ClickedGuard.
      */
-    public static ClickGuard guard(View view, long guardPeriodMillis) {
-        return guard(view, newGuard(guardPeriodMillis));
+    public static ClickGuard guard(long watchPeriodMillis, View view, View... others) {
+        return guard(newGuard(watchPeriodMillis), view, others);
     }
 
     /**
-     * Use a specific ClickGuard <code>guard</code> to guard a View.
+     * Use a specific ClickGuard {@code guard} to guard View(s).
      *
-     * @param view  The view to be guarded.
-     * @param guard The ClickGuard used to guard.
-     * @return The ClickedGuard used to guard this View.
+     * @param guard  The ClickGuard used to guard.
+     * @param view   The View to be guarded.
+     * @param others More Views to be guarded.
+     * @return The given ClickedGuard itself.
      */
-    public static ClickGuard guard(View view, ClickGuard guard) {
-        return guard.add(view);
+    public static ClickGuard guard(ClickGuard guard, View view, View... others) {
+        return guard.addAll(view, others);
     }
+
+    /**
+     * Get the ClickGuard from a guarded View.
+     *
+     * @param view A View guarded by ClickGuard.
+     * @return The ClickGuard which guards this View.
+     */
+    public static ClickGuard get(View view) {
+        OnClickListener listener = retrieveOnClickListener(view);
+        if (listener instanceof GuardedOnClickListener) {
+            return ((GuardedOnClickListener) listener).getClickGuard();
+        }
+        throw new IllegalStateException("The view (id: 0x" + view.getId() + ") isn't guarded by ClickGuard!");
+    }
+
+    /**
+     * Retrieve {@linkplain android.view.View.OnClickListener OnClickListener} from a View.
+     *
+     * @param view The View used to retrieve.
+     * @return The retrieved {@linkplain android.view.View.OnClickListener OnClickListener}.
+     */
+    public static OnClickListener retrieveOnClickListener(View view) {
+        if (view == null) {
+            throw new NullPointerException("Given view is null!");
+        }
+        return ListenerGetter.get(view);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    //                                  Utility methods end
+    // ---------------------------------------------------------------------------------------------
 
     /**
      * Let a view to be guarded by this ClickGuard.
-     * In a guard period, only the first clicked view can be notified.
      *
      * @param view The view to be guarded.
      * @return This ClickGuard instance.
-     * @see #addAll(android.view.View...)
+     * @see #addAll(android.view.View, android.view.View...)
      */
     public ClickGuard add(View view) {
         if (view == null) {
             throw new IllegalArgumentException("View shouldn't be null!");
         }
-        OnClickListener listener = ListenerGetter.get(view);
+        OnClickListener listener = retrieveOnClickListener(view);
         if (listener == null) {
             throw new IllegalStateException("Haven't set an OnClickListener to View (id: 0x"
                     + Integer.toHexString(view.getId()) + ")!");
@@ -142,63 +233,77 @@ public abstract class ClickGuard {
     }
 
     /**
-     * Let a series of views to be guarded by this ClickGuard.
-     * In a guard period, only the first clicked view can be notified.
+     * Like {@link #add(android.view.View)}. Let a series of views to be guarded by this ClickGuard.
      *
-     * @param views The views to be guarded.
+     * @param view   The view to be guarded.
+     * @param others More views to be guarded.
      * @return This ClickGuard instance.
      * @see #add(android.view.View)
      */
-    public ClickGuard addAll(View... views) {
-        for (View view : views) {
-            add(view);
+    public ClickGuard addAll(View view, View... others) {
+        add(view);
+        for (View v : others) {
+            add(v);
         }
         return this;
     }
 
+    /**
+     * Let the provided {@link android.view.View.OnClickListener} to be a {@link GuardedOnClickListener}
+     * which will be guarded by this ClickGuard.
+     *
+     * @param onClickListener onClickListener
+     * @return A GuardedOnClickListener instance.
+     */
     public GuardedOnClickListener wrapOnClickListener(OnClickListener onClickListener) {
-        return GuardedOnClickListener.wrap(onClickListener, this);
+        if (onClickListener == null) {
+            throw new IllegalArgumentException("onClickListener shouldn't be null!");
+        }
+        if (onClickListener instanceof GuardedOnClickListener) {
+            throw new IllegalArgumentException("Can't wrap GuardedOnClickListener!");
+        }
+        return new InnerGuardedOnClickListener(onClickListener, this);
     }
 
     /**
-     * Let the Guard start to guard.
+     * Let the Guard to start watching.
      */
-    public abstract void guard();
+    public abstract void watch();
 
     /**
      * Let the Guard to have a rest.
      */
-    public abstract void relax();
+    public abstract void rest();
 
     /**
      * Determine whether the Guard is on duty.
      *
-     * @return Whether the Guard is on duty.
+     * @return Whether the Guard is watching.
      */
-    public abstract boolean isGuarding();
+    public abstract boolean isWatching();
 
-    private static class LaxGuard extends ClickGuard {
-        private static final int GUARDING = 0;
+    private static class ClickGuardImpl extends ClickGuard {
+        private static final int WATCHING = 0;
         private final Handler mHandler = new Handler(Looper.getMainLooper());
-        private final long mGuardPeriodMillis;
+        private final long mWatchPeriodMillis;
 
-        LaxGuard(long guardPeriodMillis) {
-            mGuardPeriodMillis = guardPeriodMillis;
+        ClickGuardImpl(long watchPeriodMillis) {
+            mWatchPeriodMillis = watchPeriodMillis;
         }
 
         @Override
-        public void guard() {
-            mHandler.sendEmptyMessageDelayed(GUARDING, mGuardPeriodMillis);
+        public void watch() {
+            mHandler.sendEmptyMessageDelayed(WATCHING, mWatchPeriodMillis);
         }
 
         @Override
-        public void relax() {
-            mHandler.removeMessages(GUARDING);
+        public void rest() {
+            mHandler.removeMessages(WATCHING);
         }
 
         @Override
-        public boolean isGuarding() {
-            return mHandler.hasMessages(GUARDING);
+        public boolean isWatching() {
+            return mHandler.hasMessages(WATCHING);
         }
     }
 
@@ -206,41 +311,15 @@ public abstract class ClickGuard {
      * OnClickListener which can avoid multiple rapid clicks.
      */
     public static abstract class GuardedOnClickListener implements OnClickListener {
-        ClickGuard mGuard;
-        OnClickListener mWrapped;
-
-        public static GuardedOnClickListener wrap(OnClickListener onClickListener, ClickGuard guard) {
-            if (onClickListener == null) {
-                throw new IllegalArgumentException("onClickListener shouldn't be null!");
-            }
-            if (onClickListener instanceof GuardedOnClickListener) {
-                throw new IllegalArgumentException("Can't wrap GuardedOnClickListener!");
-            }
-            return new InnerGuardedOnClickListener(internalUnwrap(onClickListener), guard);
-        }
-
-        public static OnClickListener unwrap(GuardedOnClickListener guardedOnClickListener) {
-            return internalUnwrap(guardedOnClickListener);
-        }
-
-        static OnClickListener internalUnwrap(OnClickListener onClickListener) {
-            if (!(onClickListener instanceof GuardedOnClickListener)) {
-                return onClickListener;
-            }
-            GuardedOnClickListener guardedOnClickListener = ((GuardedOnClickListener) onClickListener);
-            guardedOnClickListener.mGuard.relax();
-            if (guardedOnClickListener.mWrapped == null) {
-                throw new IllegalStateException("Non wrapped OnClickListener found");
-            }
-            return internalUnwrap(guardedOnClickListener.mWrapped);
-        }
+        private ClickGuard mGuard;
+        private OnClickListener mWrapped;
 
         public GuardedOnClickListener() {
-            this(DEFAULT_GUARD_PERIOD_MILLIS);
+            this(DEFAULT_WATCH_PERIOD_MILLIS);
         }
 
-        public GuardedOnClickListener(long guardPeriodMillis) {
-            this(newGuard(guardPeriodMillis));
+        public GuardedOnClickListener(long watchPeriodMillis) {
+            this(newGuard(watchPeriodMillis));
         }
 
         public GuardedOnClickListener(ClickGuard guard) {
@@ -254,7 +333,7 @@ public abstract class ClickGuard {
 
         @Override
         final public void onClick(View v) {
-            if (mGuard.isGuarding()) {
+            if (mGuard.isWatching()) {
                 // Guard is guarding, can't do anything.
                 onIgnored();
                 return;
@@ -265,21 +344,20 @@ public abstract class ClickGuard {
             }
             if (onClicked()) {
                 // Guard becomes vigilant.
-                mGuard.guard();
+                mGuard.watch();
             }
         }
 
         /**
-         * Called when a click to a view is allowed.
+         * Called when a click is allowed.
          *
-         * @return Determine whether this click has been consumed.
-         * If <code>true</code> is returned, the host view will be guarded. All clicks in the upcoming guard period will be ignored.
-         * Otherwise, the next click will not be ignored.
+         * @return If {@code true} is returned, the host view will be guarded. All click events in
+         * the upcoming watch period will be ignored. Otherwise, the next click will not be ignored.
          */
         public abstract boolean onClicked();
 
         /**
-         * Called when a click to a view is ignored.
+         * Called when a click is ignored.
          */
         public void onIgnored() {
         }
@@ -289,6 +367,7 @@ public abstract class ClickGuard {
         }
     }
 
+    // Inner GuardedOnClickListener implementation.
     static class InnerGuardedOnClickListener extends GuardedOnClickListener {
         InnerGuardedOnClickListener(OnClickListener onClickListener, ClickGuard guard) {
             super(onClickListener, guard);
