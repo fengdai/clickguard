@@ -2,11 +2,21 @@ repositories {
     jcenter()
 }
 
-apply plugin: 'java'
-apply plugin: 'provided-base'
+apply plugin: 'com.android.library'
+
+android {
+    compileSdkVersion 21
+    buildToolsVersion "21.1.2"
+
+    defaultConfig {
+        minSdkVersion 4
+        targetSdkVersion 21
+        versionCode 1
+        versionName "1.0"
+    }
+}
 
 dependencies {
-    provided 'org.robolectric:android-all:5.0.0_r2-robolectric-0'
     testCompile 'junit:junit:4.12'
     testCompile 'org.robolectric:robolectric:2.4'
 }

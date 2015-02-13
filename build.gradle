@@ -1,6 +1,6 @@
 buildscript {
     repositories { jcenter() }
     dependencies {
-        classpath 'com.netflix.nebula:gradle-extra-configurations-plugin:2.+'
+        classpath 'com.android.tools.build:gradle:1.1.0-rc1'
     }
 }
