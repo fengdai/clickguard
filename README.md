@@ -7,7 +7,7 @@ Just:
 ClickGuard.guard(button);
 ```
 
-
+Alternative project: [mocha](https://github.com/fengdai/mocha).
 
 License
 =======
