@@ -90,7 +90,7 @@ public abstract class ClickGuard {
     // ---------------------------------------------------------------------------------------------
 
     /**
-     * Create a ClickGuard with default watch period: {@link #DEFAULT_WATCH_PERIOD_MILLIS}.
+     * Utility method. Create a ClickGuard with default watch period: {@link #DEFAULT_WATCH_PERIOD_MILLIS}.
      *
      * @return The created ClickGuard instance.
      */
@@ -99,7 +99,7 @@ public abstract class ClickGuard {
     }
 
     /**
-     * Create a ClickGuard with specific watch period: {@code watchPeriodMillis}.
+     * Utility method. Create a ClickGuard with specific watch period: {@code watchPeriodMillis}.
      *
      * @return The created ClickGuard instance.
      */
@@ -108,8 +108,8 @@ public abstract class ClickGuard {
     }
 
     /**
-     * Let the provided {@linkplain android.view.View.OnClickListener OnClickListener} to be a
-     * {@linkplain GuardedOnClickListener GuardedOnClickListener}. Use a new guard with default
+     * Utility method. Let the provided {@linkplain android.view.View.OnClickListener OnClickListener}
+     * to be a {@linkplain GuardedOnClickListener GuardedOnClickListener}. Use a new guard with default
      * watch period: {@link #DEFAULT_WATCH_PERIOD_MILLIS}.
      *
      * @param onClickListener The listener to be wrapped.
@@ -120,8 +120,8 @@ public abstract class ClickGuard {
     }
 
     /**
-     * Let the provided {@linkplain android.view.View.OnClickListener OnClickListener} to be a
-     * {@linkplain GuardedOnClickListener GuardedOnClickListener}. Use a new guard with specific
+     * Utility method. Let the provided {@linkplain android.view.View.OnClickListener OnClickListener}
+     * to be a {@linkplain GuardedOnClickListener GuardedOnClickListener}. Use a new guard with specific
      * watch period: {@code watchPeriodMillis}.
      *
      * @param watchPeriodMillis The specific watch period.
@@ -133,9 +133,9 @@ public abstract class ClickGuard {
     }
 
     /**
-     * Let the provided {@linkplain android.view.View.OnClickListener OnClickListener} to be a
-     * {@linkplain GuardedOnClickListener GuardedOnClickListener}. Use specific ClickGuard: {@code
-     * guard}.
+     * Utility method. Let the provided {@linkplain android.view.View.OnClickListener OnClickListener}
+     * to be a {@linkplain GuardedOnClickListener GuardedOnClickListener}. Use specific ClickGuard:
+     * {@code guard}.
      *
      * @param guard           The specific ClickGuard.
      * @param onClickListener The listener to be wrapped.
@@ -146,8 +146,8 @@ public abstract class ClickGuard {
     }
 
     /**
-     * Use a new ClickGuard with default watch period {@link #DEFAULT_WATCH_PERIOD_MILLIS} to guard
-     * View(s).
+     * Utility method. Use a new ClickGuard with default watch period {@link #DEFAULT_WATCH_PERIOD_MILLIS}
+     * to guard View(s).
      *
      * @param view   The View to be guarded.
      * @param others More views to be guarded.
@@ -158,7 +158,8 @@ public abstract class ClickGuard {
     }
 
     /**
-     * Use a new ClickGuard with specific guard period {@code watchPeriodMillis} to guard View(s).
+     * Utility method. Use a new ClickGuard with specific guard period {@code watchPeriodMillis} to
+     * guard View(s).
      *
      * @param watchPeriodMillis The specific watch period.
      * @param view              The View to be guarded.
@@ -170,7 +171,7 @@ public abstract class ClickGuard {
     }
 
     /**
-     * Use a specific ClickGuard {@code guard} to guard View(s).
+     * Utility method. Use a specific ClickGuard {@code guard} to guard View(s).
      *
      * @param guard  The ClickGuard used to guard.
      * @param view   The View to be guarded.
@@ -182,7 +183,41 @@ public abstract class ClickGuard {
     }
 
     /**
-     * Get the ClickGuard from a guarded View.
+     * Utility method. Use a new ClickGuard with default watch period {@link #DEFAULT_WATCH_PERIOD_MILLIS}
+     * to guard a series of Views.
+     *
+     * @param views The Views to be guarded.
+     * @return The created ClickedGuard.
+     */
+    public static ClickGuard guardAll(Iterable<View> views) {
+        return guardAll(DEFAULT_WATCH_PERIOD_MILLIS, views);
+    }
+
+    /**
+     * Utility method. Use a new ClickGuard with specific guard period {@code watchPeriodMillis} to
+     * guard a series of Views.
+     *
+     * @param watchPeriodMillis The specific watch period.
+     * @param views             The Views to be guarded.
+     * @return The created ClickedGuard.
+     */
+    public static ClickGuard guardAll(long watchPeriodMillis, Iterable<View> views) {
+        return guardAll(newGuard(watchPeriodMillis), views);
+    }
+
+    /**
+     * Utility method. Use a specific ClickGuard {@code guard} to guard a series of Views.
+     *
+     * @param guard The ClickGuard used to guard.
+     * @param views The Views to be guarded.
+     * @return The given ClickedGuard itself.
+     */
+    public static ClickGuard guardAll(ClickGuard guard, Iterable<View> views) {
+        return guard.addAll(views);
+    }
+
+    /**
+     * Utility method. Get the ClickGuard from a guarded View.
      *
      * @param view A View guarded by ClickGuard.
      * @return The ClickGuard which guards this View.
@@ -196,7 +231,8 @@ public abstract class ClickGuard {
     }
 
     /**
-     * Retrieve {@linkplain android.view.View.OnClickListener OnClickListener} from a View.
+     * Utility method. Retrieve {@linkplain android.view.View.OnClickListener OnClickListener} from
+     * a View.
      *
      * @param view The View used to retrieve.
      * @return The retrieved {@linkplain android.view.View.OnClickListener OnClickListener}.
@@ -243,6 +279,20 @@ public abstract class ClickGuard {
     public ClickGuard addAll(View view, View... others) {
         add(view);
         for (View v : others) {
+            add(v);
+        }
+        return this;
+    }
+
+    /**
+     * Like {@link #add(android.view.View)}. Let a series of views to be guarded by this ClickGuard.
+     *
+     * @param views The views to be guarded.
+     * @return This ClickGuard instance.
+     * @see #add(android.view.View)
+     */
+    public ClickGuard addAll(Iterable<View> views) {
+        for (View v : views) {
             add(v);
         }
         return this;
@@ -452,7 +502,8 @@ public abstract class ClickGuard {
             @Override
             public OnClickListener getOnClickListener(View view) {
                 Object listenerInfo = getFieldValue(mListenerInfoField, view);
-                return listenerInfo != null ? (OnClickListener) getFieldValue(mOnClickListenerField, listenerInfo) : null;
+                return listenerInfo != null ?
+                        (OnClickListener) getFieldValue(mOnClickListenerField, listenerInfo) : null;
             }
         }
     }
